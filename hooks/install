@@ -1,18 +1,12 @@
-#!/usr/bin/env python3
+#!/bin/bash
 
-# Load modules from $CHARM_DIR/lib
-import sys
-sys.path.append('lib')
+. /etc/os-release
 
-from charms.bootstrap import bootstrap_charm_deps
-bootstrap_charm_deps()
+if [[ $ID == "centos" ]]; then
+    yum install --assumeyes epel-release
+    yum install --assumeyes python34 python34-setuptools
+    ln -s /usr/bin/python3.4 /usr/bin/python3
+fi
 
+python3 $CHARM_DIR/hooks/installpy
 
-# This will load and run the appropriate @hook and other decorated
-# handlers from $CHARM_DIR/reactive, $CHARM_DIR/hooks/reactive,
-# and $CHARM_DIR/hooks/relations.
-#
-# See https://jujucharms.com/docs/stable/authors-charm-building
-# for more information on this pattern.
-from charms.reactive import main
-main()

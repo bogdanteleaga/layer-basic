@@ -1,4 +1,5 @@
 import os
+import platform
 import sys
 import shutil
 from glob import glob
@@ -25,14 +26,14 @@ def bootstrap_charm_deps():
         return
     # bootstrap wheelhouse
     if os.path.exists('wheelhouse'):
-        package_install(['python3-pip', 'python3-yaml'])
+        wheelhouse_setup_packages()
         from charms import layer
         cfg = layer.options('basic')
         # include packages defined in layer.yaml
         package_install(cfg.get('packages', []))
         # if we're using a venv, set it up
         if cfg.get('use_venv'):
-            package_install(['python-virtualenv'])
+            setup_venv()
             cmd = ['virtualenv', '--python=python3', venv]
             if cfg.get('include_system_packages'):
                 cmd.append('--system-site-packages')
@@ -78,12 +79,14 @@ def package_install(packages):
     This ensures a consistent set of options that are often missed but
     should really be set.
     """
+    if not packages:
+        return
     if isinstance(packages, (str, bytes)):
         packages = [packages]
 
     env = os.environ.copy()
 
-    distro = platform.linux_distribution()[0]
+    distro = get_distro()
     if "Ubuntu" in distro:
         if 'DEBIAN_FRONTEND' not in env:
             env['DEBIAN_FRONTEND'] = 'noninteractive'
@@ -95,9 +98,32 @@ def package_install(packages):
     elif "CentOS" in distro:
         cmd = ['yum',
             '--assumeyes',
-            '--debuglevel=1'
+            '--debuglevel=1',
             'install']
     else:
         raise DistributionNotSupported
 
     check_call(cmd + packages, env=env)
+
+def wheelhouse_setup_packages():
+    distro = get_distro()
+    if "Ubuntu" in distro:
+        package_install(['python3-pip', 'python3-yaml'])
+    if "CentOS" in distro:
+        package_install(['python34-PyYAML'])
+        env = os.environ.copy()
+        check_call(['easy_install-3.4', 'pip'])
+    else:
+        raise DistributionNotSupported
+
+def setup_venv():
+    distro = get_distro()
+    if "Ubuntu" in distro:
+        package_install(['python-virtualenv'])
+    if "CentOS" in distro:
+        check_call(['pip3', 'install', 'virtualenv'])
+    else:
+        raise DistributionNotSupported
+
+def get_distro():
+    return platform.linux_distribution()[0]
